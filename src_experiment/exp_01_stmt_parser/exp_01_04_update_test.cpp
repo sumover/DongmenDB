@@ -59,7 +59,7 @@ TEST_F(Exp_01_04_UpdateTest, Correct){
 
    createTable();
 /*增加数据*/
-//    insertData();
+    insertData();
 
     /*执行测试，不能写成循环，因为无法清楚显示哪个测试用例失败了*/
     EXPECT_EQ(_expect_list[0], update(_m_list[0]));

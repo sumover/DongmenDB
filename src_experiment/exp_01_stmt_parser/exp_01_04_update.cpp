@@ -75,9 +75,10 @@ sql_stmt_update *UpdateParser::parse_sql_stmt_update() {
     }
     token = this->parseNextToken();
     Expression *whereExpr = this->parseExpressionRD();
-    if (this->parserStateType == PARSER_WRONG) {
-        return NULL;
+    if (this->parserStateType != PARSER_WRONG) {
+        where = SRASelect(table, whereExpr);
+    } else {
+        where = SRASelect(table, whereExpr);
     }
-    where = SRASelect(table, whereExpr);
     return sqlStmtUpdate;
 };

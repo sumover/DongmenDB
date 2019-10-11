@@ -3,10 +3,6 @@
 //
 
 #include <physicalplan/ExecutionPlan.h>
-#include <physicalplan/TableScan.h>
-#include <physicalplan/Select.h>
-#include <physicalplan/Project.h>
-#include <physicalplan/Join.h>
 
 /*执行 update 语句的物理计划，返回修改的记录条数
  * 返回大于等于0的值，表示修改的记录条数；
@@ -28,21 +24,26 @@ int ExecutionPlan::executeUpdate(DongmenDB *db, sql_stmt_update *sqlStmtUpdate, 
     int count = 0;
     while (scanner->next()) {
         for (int i = 0; i < fieldNum; ++i) {
-            char *&field = fields[i];
-            Expression *&fieldExpr = fieldExprs[i];
+            char *field = fields[i];
+            Expression *fieldExpr = fieldExprs[i];
             FieldInfo *val = scanner->getField(tableName, field);
             data_type type = val->type;
+            variant *var = (variant *) malloc(sizeof(sizeof(variant)));
+            scanner->evaluateExpression(fieldExpr, scanner, var);
+            if (var->type != val->type) {
+                fprintf(stdout, "error: type not same");
+                return DONGMENDB_EINVALIDSQL;
+            }
             if (type == DATA_TYPE_CHAR) {
-                scanner->setString(tableName, field, fieldExpr->term->val->original_value);
+                scanner->setString(tableName, field, var->strValue);
             } else if (type == DATA_TYPE_INT) {
-                Expression *expr = scanner->evaluateExpression(fieldExpr, scanner, scanner->getValue(field));
-                char *newInt = new_id_name();
-                strcpy(newInt, expr->term->val->original_value);
-                scanner->setInt(tableName, field, atoi(newInt));
+                scanner->setInt(tableName, field, var->intValue);
             }
         }
         count++;
     }
+
+    scanner->close();
 
     return count;
 };
