@@ -6,6 +6,7 @@
 #include <dongmensql/sqlstatement.h>
 
 /**
+ * CREATE TABLE <TABLE_NAME> ();
  * 在现有create table基础上，修改代码以支持pk，fk，check，unique，not null约束。
  */
 

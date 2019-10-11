@@ -29,7 +29,7 @@ DongmenDB实现关系数据库管理系统的基本功能：
 ### 3.3 select
 ### 3.4 delete
 ### 3.5 column
-### 3.6 relational algebra
+### 3.6 relational  bvhm
 ### 3.7 关系代数查询优化
 
 ## 4 词法语法分析parser

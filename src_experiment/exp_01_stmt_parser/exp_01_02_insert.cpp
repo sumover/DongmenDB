@@ -13,13 +13,13 @@
 
 sql_stmt_insert *InsertParser::parse_sql_stmt_insert() {
     char *tableName = NULL;
-    vector<char*> fields ;
-    vector<variant*> values ;
+    vector<char *> fields;
+    vector<variant *> values;
 
-    if (!this->matchToken( TOKEN_RESERVED_WORD, "insert")) {
+    if (!this->matchToken(TOKEN_RESERVED_WORD, "insert")) {
         return NULL;
     }
-    if (!this->matchToken( TOKEN_RESERVED_WORD, "into")) {
+    if (!this->matchToken(TOKEN_RESERVED_WORD, "into")) {
         strcpy(this->parserMessage, "invalid sql: should be into.");
         return NULL;
     }
@@ -32,7 +32,7 @@ sql_stmt_insert *InsertParser::parse_sql_stmt_insert() {
         return NULL;
     }
     token = this->parseEatAndNextToken();
-    if (!this->matchToken( TOKEN_OPEN_PAREN, "(")) {
+    if (!this->matchToken(TOKEN_OPEN_PAREN, "(")) {
         strcpy(this->parserMessage, "invalid sql: missing (.");
         return NULL;
     }
@@ -43,9 +43,9 @@ sql_stmt_insert *InsertParser::parse_sql_stmt_insert() {
             strcpy(fieldName, token->text);
             fields.push_back(fieldName);
             token = this->parseEatAndNextToken();
-            if (token->type==TOKEN_COMMA){
+            if (token->type == TOKEN_COMMA) {
                 token = this->parseEatAndNextToken();
-            }else{
+            } else {
                 break;
             }
         }
@@ -53,37 +53,37 @@ sql_stmt_insert *InsertParser::parse_sql_stmt_insert() {
         strcpy(this->parserMessage, "invalid sql: missing field name.");
         return NULL;
     }
-    if (!this->matchToken( TOKEN_CLOSE_PAREN, ")")) {
+    if (!this->matchToken(TOKEN_CLOSE_PAREN, ")")) {
         strcpy(this->parserMessage, "invalid sql: missing ).");
         return NULL;
     }
-    if (!this->matchToken( TOKEN_RESERVED_WORD, "values")) {
+    if (!this->matchToken(TOKEN_RESERVED_WORD, "values")) {
         strcpy(this->parserMessage, "invalid sql: missing values.");
         return NULL;
     }
-    if (!this->matchToken( TOKEN_OPEN_PAREN, "(")) {
+    if (!this->matchToken(TOKEN_OPEN_PAREN, "(")) {
         strcpy(this->parserMessage, "invalid sql: missing (.");
         return NULL;
     }
     token = this->parseNextToken();
     if (token->type == TOKEN_STRING || token->type == TOKEN_DECIMAL) {
         while (token->type == TOKEN_STRING || token->type == TOKEN_DECIMAL) {
-            if (token->type == TOKEN_STRING){
-                variant *v = (variant*)malloc(sizeof(variant*));
+            if (token->type == TOKEN_STRING) {
+                variant *v = (variant *) malloc(sizeof(variant *));
                 v->type == DATA_TYPE_CHAR;
-                v->strValue=token->text;
+                v->strValue = token->text;
                 values.push_back(v);
-            } else{
-                variant *v = (variant*)malloc(sizeof(variant*));
+            } else {
+                variant *v = (variant *) malloc(sizeof(variant *));
                 v->type == DATA_TYPE_INT;
                 v->intValue = atoi(token->text);
                 values.push_back(v);
             }
 
             token = this->parseEatAndNextToken();
-            if (token->type==TOKEN_COMMA){
+            if (token->type == TOKEN_COMMA) {
                 token = this->parseEatAndNextToken();
-            }else{
+            } else {
                 break;
             }
         }
@@ -91,11 +91,11 @@ sql_stmt_insert *InsertParser::parse_sql_stmt_insert() {
         strcpy(this->parserMessage, "invalid sql: missing a value.");
         return NULL;
     }
-    if (!this->matchToken( TOKEN_CLOSE_PAREN, ")")) {
+    if (!this->matchToken(TOKEN_CLOSE_PAREN, ")")) {
         strcpy(this->parserMessage, "invalid sql: missing ).");
         return NULL;
     }
-    sql_stmt_insert *sqlStmtInsert = (sql_stmt_insert *)calloc(sizeof(sql_stmt_insert),1);
+    sql_stmt_insert *sqlStmtInsert = (sql_stmt_insert *) calloc(sizeof(sql_stmt_insert), 1);
     sqlStmtInsert->tableName = tableName;
     sqlStmtInsert->fields = fields;
     sqlStmtInsert->values = values;
