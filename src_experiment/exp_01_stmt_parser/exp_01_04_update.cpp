@@ -79,6 +79,7 @@ sql_stmt_update *UpdateParser::parse_sql_stmt_update() {
         where = SRASelect(table, whereExpr);
     } else {
         where = SRASelect(table, whereExpr);
+        SRA_print(where);
     }
     return sqlStmtUpdate;
 };

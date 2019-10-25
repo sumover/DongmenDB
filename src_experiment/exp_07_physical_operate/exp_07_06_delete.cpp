@@ -12,10 +12,17 @@
  * 返回小于0的值，表示删除过程中出现错误。
  * */
 
-int ExecutionPlan::executeDelete(DongmenDB *db, sql_stmt_delete *sqlStmtDelete, Transaction *tx){
-        /*删除语句以select的物理操作为基础实现。
-     * 1. 使用 sql_stmt_delete 的条件参数，调用 physical_scan_select_create 创建select的物理计划并初始化;
-     * 2. 执行 select 的物理计划，完成 delete 操作
-     * */
-    return -1;
+int ExecutionPlan::executeDelete(DongmenDB *db, sql_stmt_delete *sqlStmtDelete, Transaction *tx) {
+    /*删除语句以select的物理操作为基础实现。
+ * 1. 使用 sql_stmt_delete 的条件参数，调用 physical_scan_select_create 创建select的物理计划并初始化;
+ * 2. 执行 select 的物理计划，完成 delete 操作
+ * */
+    int count = 0;
+    Scan *scan = generateScan(db, sqlStmtDelete->where, tx);
+    while (scan->next()) {
+        scan->deleteRecord();
+        count++;
+    }
+    scan->close();
+    return count;
 };
