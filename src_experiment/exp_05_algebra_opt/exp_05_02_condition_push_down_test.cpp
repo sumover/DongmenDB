@@ -8,7 +8,7 @@ class Exp_05_02_ConditionPushdownTest : public TestStmtOptimized {
 protected:
     virtual void SetUp() {
 
-//        _m_list[0] = "select student.*, sc.*, course.* from student, sc, course where student.sno = sc.sno and sc.cno = course.cno and course.cno = 'c001' and grade >= 80 and student.sname = 'tom simith'";
+        _m_list[0] = "select student.*, sc.*, course.* from student, sc, course where student.sno = sc.sno and sc.cno = course.cno and course.cno = 'c001' and grade >= 80 and student.sname = 'tom simith'";
         _m_list[1] = "select student.sno, sc.cno,sname,grade, cname from student, sc, course where student.sno = sc.sno and sc.cno = course.cno and grade >= 80";
         _m_list[2] = "select sno,cno,grade, cname from sc, course where sc.cno = course.cno and grade > 80";
         _m_list[3] = "select student.*, grade from student, sc where student.sno = sc.sno and sname = 'tom simith' and grade >= 80";
@@ -16,7 +16,7 @@ protected:
         _m_list[5] = "select student.* from student, sc, course where student.sno = sc.sno and sc.cno = course.cno";
         _m_list[6] = "select student.*, sc.*, course.* from student, sc, course where student.sno = sc.sno and sc.cno = course.cno and course.cno = 'c001'";
         _m_list[7] = "select student.*, sc.*, course.* from student, sc, course where student.sno = sc.sno and sc.cno = course.cno and course.cno = 'c001' and grade >= 80";
-        _m_list[0] = "select * from  course where grade >= 80 and 1";
+        _m_list[8] = "select * from  course where grade >= 80 and 1";
         _m_list[9] = "select student.*, sc.* from student, sc";
     }
 
