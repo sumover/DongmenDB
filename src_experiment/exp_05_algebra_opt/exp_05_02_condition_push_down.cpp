@@ -45,9 +45,11 @@ public:
         return before;
     }
 
-    virtual void setSRAOn(std::vector<Expression *> expressionVector) = 0;
+    virtual void setSRAOn(std::vector<Expression *> &expressionVector) = 0;
 
-    virtual void pushSRADown(std::vector<Expression *> expressionVector) = 0;
+    virtual void pushSRADown(std::vector<Expression *> &expressionVector) = 0;
+
+    virtual bool expressionMatch(Expression *expr) = 0;
 };//explain: 其实也不是状态模式, 就是活用了C++的继承而已
 
 class _Table : public _SRA {
@@ -60,13 +62,34 @@ public:
         strcpy(table_name, sra->table.ref->table_name);
     }
 
-    void setSRAOn(std::vector<Expression *> expressionVector) override {
-        //explain: 漫长的算法他又lei了
-
-
+    bool expressionMatch(Expression *expr) override {
+        if (expr == nullptr)return false;
+        Expression *pointer = expr;
+        while (pointer) {
+            if (pointer->opType == TOKEN_WORD) {
+                if (strcmp(pointer->term->ref->tableName, table_name) == 0) {
+                    return true;
+                }
+            }
+            pointer = pointer->nextexpr;
+        }
+        return false;
     }
 
-    void pushSRADown(std::vector<Expression *> expressionVector) override {
+    void setSRAOn(std::vector<Expression *> &expressionVector) override {
+        //explain: 漫长的算法他又lei了
+        std::vector<Expression *> matchedExpression;
+        for (int i = 0; i < expressionVector.size(); ++i) {
+            auto expr = expressionVector[i];
+            if (expressionMatch(expr)) {
+                matchedExpression.push_back(expr);
+                expressionVector[i] = nullptr;
+            }
+        }
+        // TODO: 构造一个SRA_Select串, 并添加到该节点的父节点去
+    }
+
+    void pushSRADown(std::vector<Expression *> &expressionVector) override {
 
     }
 };
@@ -88,13 +111,17 @@ public:
         right = sra_right;
     }
 
-    void setSRAOn(std::vector<Expression *> expressionVector) override {
+    void setSRAOn(std::vector<Expression *> &expressionVector) override {
         std::vector<Expression *> expressionOn;
 
     }
 
-    void pushSRADown(std::vector<Expression *> expressionVector) override {
+    void pushSRADown(std::vector<Expression *> &expressionVector) override {
 
+    }
+
+    bool expressionMatch(Expression *expr) override {
+        return false;
     }
 };
 
