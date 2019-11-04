@@ -89,6 +89,7 @@ public:
     }
 
     void setSRAOn(std::vector<Expression *> expressionVector) override {
+        std::vector<Expression *> expressionOn;
 
     }
 
@@ -256,6 +257,7 @@ bool isJoinExpression(Expression *expr) {
     Expression *pointer = expr;
     while (pointer) {
         if (pointer->opType == TOKEN_WORD)num_TOKEN_WORD++;
+        pointer = pointer->nextexpr;
     }
     return num_TOKEN_WORD == 2;
 }
