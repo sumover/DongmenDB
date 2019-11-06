@@ -14,7 +14,7 @@
  * */
 
 
-int TableManager::semantic_check_table_exists(char *tableName, Transaction *tx){
+int TableManager::semantic_check_table_exists(char *tableName, Transaction *tx) {
 
     /*
      * 1. 调用 table_manager_get_tableinfo 获得 FieldInfo
