@@ -36,6 +36,8 @@ bool haveTableName(Expression *expr);
 
 std::vector<Expression *> cutNoTableNameExpresionFrom(std::vector<Expression *> &exprVector);
 
+SRA_t *createSelectOn(SRA_t *now, SRA_t *before, std::vector<Expression *> &expr, int counter);
+
 #endif
 
 /**
@@ -477,6 +479,30 @@ std::vector<Expression *> cutNoTableNameExpresionFrom(std::vector<Expression *> 
     return cutedExpr;
 }
 
+/**
+ * explain: to redescribe SRA_t*list
+ * @param iter
+ * @param sra
+ * @return
+ */
+SRA_t *createSelectOn(SRA_t *now, SRA_t *before, std::vector<Expression *> &expr, int counter = 0) {
+
+    switch (before->t) {
+        case SRA_JOIN: {
+
+        }
+        case SRA_PROJECT: {
+
+        }
+        case SRA_SELECT: {
+
+        }
+        case SRA_TABLE: {
+
+        }
+    }
+}
+
 
 /*输入一个关系代数表达式，输出优化后的关系代数表达式
  * 要求：在查询条件符合合取范式的前提下，根据等价变换规则将查询条件移动至合适的位置。
@@ -488,6 +514,8 @@ SRA_t *dongmengdb_algebra_optimize_condition_pushdown(SRA_t *sra, TableManager *
     std::vector<Expression *> expressionVector = expressionSpread(begin_expr);
     std::vector<Expression *> noTableNameExpr = cutNoTableNameExpresionFrom(expressionVector);
     join_tree->pushSRADown(expressionVector);
-    join_tree->setSRAOn(noTableNameExpr);
+    //explain: rebuild SRA_t pointer
+    sra->project.sra = sra->project.sra->select.sra;
+    createSelectOn(sra->project.sra, sra, noTableNameExpr);
     return sra;
 }
