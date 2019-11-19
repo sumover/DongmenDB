@@ -469,14 +469,14 @@ bool haveTableName(Expression *expr) {
 }
 
 std::vector<Expression *> cutNoTableNameExpresionFrom(std::vector<Expression *> &exprVector) {
-    std::vector<Expression *> cutedExpr;
+    std::vector<Expression *> cuttedExpr;
     for (auto &expr:exprVector) {
         if (!haveTableName(expr)) {
-            cutedExpr.push_back(expr);
+            cuttedExpr.push_back(expr);
             expr = nullptr;
         }
     }
-    return cutedExpr;
+    return cuttedExpr;
 }
 
 /**
@@ -486,21 +486,31 @@ std::vector<Expression *> cutNoTableNameExpresionFrom(std::vector<Expression *> 
  * @return
  */
 SRA_t *createSelectOn(SRA_t *now, SRA_t *before, std::vector<Expression *> &expr, int counter = 0) {
-
+    if (counter == expr.size())
+        return nullptr;
+    SRA_t *sra = nullptr;
     switch (before->t) {
         case SRA_JOIN: {
-
+            sra = SRASelect(now, expr[counter]);
+            if (before->join.sra1 == now) {
+                before->join.sra1 = sra;
+            } else if (before->join.sra2 == now) {
+                before->join.sra2 = sra;
+            }
         }
         case SRA_PROJECT: {
-
+            sra = SRASelect(now, expr[counter]);
+            before->project.sra = sra;
         }
         case SRA_SELECT: {
-
+            sra = SRASelect(now, expr[counter]);`
+            before->select.sra = sra;
         }
         case SRA_TABLE: {
-
+            return nullptr;
         }
     }
+    return createSelectOn(now, sra, expr, counter + 1);
 }
 
 
