@@ -107,26 +107,35 @@ public:
         strcpy(table_name, sra->table.ref->table_name);
     }
 
+    bool tableNameMatched(const char *tableName) {
+        if (tableName == nullptr)return false;
+        else return strcmp(tableName, table_name) == 0;
+    }
+
     bool expressionMatch(Expression *expr) override {
-        // explain: 匹配方案: 如果有任何一个表名与当前Table的名字相同, 则返回true,
+        // explain: 匹配方案:有且仅有一个`Expression*`的类型为TOKEN_WORD, 且值与当前匹配
         //  如果没有任何匹配值, 返回false
         if (expr == nullptr)return false;
         Expression *pointer = expr;
+        int token_word_counter = 0;
+        bool token_word_matched = false;
         while (pointer) {
             if (pointer->opType == TOKEN_WORD) {
-                if (strcmp(pointer->term->ref->tableName, table_name) == 0) {
-                    return true;
+                token_word_counter++;
+                if ((strcmp(pointer->term->ref->tableName, table_name) == 0)) {
+                    token_word_matched = true;
                 }
             }
             pointer = pointer->nextexpr;
         }
-        return false;
+        return token_word_counter == 1 && token_word_matched;
     }
 
     void setSRAOn(std::vector<Expression *> &expressionVector) override {
         //explain: 漫长的算法他又lei了
         std::vector<Expression *> matchedExpression;// Expression which match this leave
         for (size_t i = 0; i < expressionVector.size(); ++i) {
+            if (expressionVector[i] == nullptr)continue;
             auto expr = expressionVector[i];
             if (this->expressionMatch(expr)) {
                 matchedExpression.push_back(expr);
@@ -150,7 +159,33 @@ public:
      * @param expr
      */
     void pushSelectOn(Expression *expr) override {
-        this->setBefore(SRASelect(table_sra, expr));
+        SRA_t *newBefore = SRASelect(table_sra, expr);
+        switch (this->getBefore()->t) { // 这一块本来可以扔到某个统一的函数里的...
+            case SRA_SELECT: {
+                this->getBefore()->select.sra = newBefore;
+                break;
+            }
+            case SRA_TABLE:
+                break;
+            case SRA_PROJECT: {
+                this->getBefore()->project.sra = newBefore;
+                break;
+            }
+            case SRA_JOIN: {
+                SRA_t *originNext = this->table_sra;
+                SRA_t *originBefore = this->getBefore();
+                if (originBefore->join.sra1 == originNext) {
+                    originBefore->join.sra1 = newBefore;
+                    break;
+                } else if (originBefore->join.sra2 == originNext) {
+                    originBefore->join.sra2 = newBefore;
+                } else break;
+            }
+            default:
+                break;
+        }
+
+        this->setBefore(newBefore);
     }
 
     bool isLeaves() override {
@@ -172,7 +207,33 @@ public:
     }
 
     void pushSelectOn(Expression *expr) override {
-        this->setBefore(SRASelect(join_sra, expr));
+        SRA_t *newBefore = SRASelect(join_sra, expr);
+        switch (this->getBefore()->t) { // 这一块本来可以扔到某个统一的函数里的...
+            case SRA_SELECT: {
+                this->getBefore()->select.sra = newBefore;
+                break;
+            }
+            case SRA_TABLE:
+                break;
+            case SRA_PROJECT: {
+                this->getBefore()->project.sra = newBefore;
+                break;
+            }
+            case SRA_JOIN: {
+                SRA_t *originNext = this->join_sra;
+                SRA_t *originBefore = this->getBefore();
+                if (originBefore->join.sra1 == originNext) {
+                    originBefore->join.sra1 = newBefore;
+                    break;
+                } else if (originBefore->join.sra2 == originNext) {
+                    originBefore->join.sra2 = newBefore;
+                } else break;
+            }
+            default:
+                break;
+        }
+
+        this->setBefore(newBefore);
     }
 
     void setLeft(_SRA *sra_left) {
@@ -187,6 +248,7 @@ public:
         // complain: 美妙的算法他又lei了
         std::vector<Expression *> matchedExpression;// Expression which match this leave
         for (size_t i = 0; i < expressionVector.size(); ++i) {
+            if (expressionVector[i] == nullptr)continue;
             auto expr = expressionVector[i];
             if (this->expressionMatch(expr)) {
                 matchedExpression.push_back(expr);
@@ -214,13 +276,32 @@ public:
      */
     bool expressionMatch(Expression *expr) override {
         if (expr == nullptr)return false;
+        // 首先解析得到expr的两个table_name
+        char *left_table_name, *right_table_name;
+        {
+            int token_word_counter = 0;
+            Expression *pointer = expr;
+            while (pointer) {
+                if (pointer->opType == TOKEN_WORD) {
+                    if (token_word_counter == 0) {
+                        left_table_name = pointer->term->ref->tableName;
+                    } else if (token_word_counter == 1) {
+                        right_table_name = pointer->term->ref->tableName;
+                    }
+                    token_word_counter++;
+                }
+                pointer = pointer->nextexpr;
+            }
+            if (token_word_counter < 2)return false;
+        }
         _Table *left_table = nullptr, *right_table = nullptr; // 暂时不考虑叶节点重复的情况
         std::function<void(_SRA *)> dfsSearch = [&](_SRA *sra) { // C++11 万岁
             if (sra->isLeaves()) {
-                if (left_table == nullptr) {
-                    left_table = dynamic_cast<_Table *>(sra);
-                } else if (right_table == nullptr) {
-                    right_table = dynamic_cast<_Table *>(sra);
+                _Table *trySRA = dynamic_cast<_Table *>(sra);
+                if (trySRA->tableNameMatched(left_table_name)) {
+                    left_table = trySRA;
+                } else if (trySRA->tableNameMatched(right_table_name)) {
+                    right_table = trySRA;
                 }
                 return;
             } else {
@@ -516,15 +597,17 @@ SRA_t *createSelectOn(SRA_t *now, SRA_t *before, std::vector<Expression *> &expr
     return createSelectOn(now, sra, expr, counter + 1);
 }
 
-
 /*输入一个关系代数表达式，输出优化后的关系代数表达式
  * 要求：在查询条件符合合取范式的前提下，根据等价变换规则将查询条件移动至合适的位置。
  * complain: this function is stupid like the function Expression* Expression::expression_print(), who can tell me what the parameter `tableManager` used to?
  * */
 SRA_t *dongmengdb_algebra_optimize_condition_pushdown(SRA_t *sra, TableManager *tableManager) {
+//    SRA_print(sra);
+//    return sra;
     _SRA *join_tree = SRAConstruct(sra, nullptr);
     Expression *begin_expr = cutANDOperator(sra->project.sra->select.cond);
     std::vector<Expression *> expressionVector = expressionSpread(begin_expr);
+#if 0
     printf("expression spread:\n");
     for (int i = 0; i < expressionVector.size(); ++i) {
         char str[1000];
@@ -534,12 +617,13 @@ SRA_t *dongmengdb_algebra_optimize_condition_pushdown(SRA_t *sra, TableManager *
         std::cout << str << std::endl;
     }
     printf("\n******************\n");
-    return sra;
+#endif
+//    return sra;
     std::vector<Expression *> noTableNameExpr = cutNoTableNameExpresionFrom(expressionVector);
     join_tree->pushSRADown(expressionVector);
     //explain: rebuild SRA_t pointer
     sra->project.sra = sra->project.sra->select.sra;
     createSelectOn(sra->project.sra, sra, noTableNameExpr);
-
+    SRA_print(sra);
     return sra;
 }
