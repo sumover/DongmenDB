@@ -39,6 +39,12 @@ std::vector<Expression *> cutNoTableNameExpresionFrom(std::vector<Expression *> 
 
 SRA_t *createSelectOn(SRA_t *now, SRA_t *before, std::vector<Expression *> &expr, int counter);
 
+void
+addTableNameOn(std::vector<Expression *> &exprVector, std::vector<char *> tableNameVector, TableManager *tableManager,
+               Transaction *transaction);
+
+void getAllTableNames(SRA_t *tree, std::vector<char *> &tableNames);
+
 #endif
 
 /**
@@ -597,11 +603,80 @@ SRA_t *createSelectOn(SRA_t *now, SRA_t *before, std::vector<Expression *> &expr
     return createSelectOn(now, sra, expr, counter + 1);
 }
 
+/**
+ * 给一堆Expr们添加上tableName
+ * @param exprVector
+ * @param tableNameVector
+ */
+void
+addTableNameOn(std::vector<Expression *> &exprVector, std::vector<char *> tableNameVector, TableManager *tableManager,
+               Transaction *transaction) {
+    std::vector<TableInfo *> tableInfoVector;
+    for (auto &tableName:tableNameVector) {
+        tableInfoVector.push_back(tableManager->table_manager_get_tableinfo(tableName, transaction));
+    }
+    std::function<void(char *, const char *)> strAdd = [](char *str, const char *add) {
+        int newLen = strlen(str) + strlen(add);
+        for (int i = strlen(str), j = 0; j < strlen(add); ++i, ++j) {
+            str[i] = add[j];
+        }
+        str[newLen] = 0;
+    };
+    std::function<void(Expression *)> resetExpressionTableName = [&](Expression *expr) -> void {
+        if (expr == nullptr)return;
+        //explain: 当且仅当 类型为`TOKEN_WORD`且`tableName=nullptr`时, 开始添加
+        if (expr->opType == TOKEN_WORD) {
+            if (expr->term->ref->tableName == nullptr) {
+                for (auto &tableInfo:tableInfoVector) {
+                    if (tableInfo->table_info_offset(expr->term->ref->columnName)) {
+                        expr->term->ref->tableName = new_id_name();
+                        strcpy(expr->term->ref->tableName, tableInfo->tableName);
+                        strcpy(expr->term->ref->allName, tableInfo->tableName);
+                        strAdd(expr->term->ref->allName, ".");
+                        strAdd(expr->term->ref->allName, expr->term->ref->columnName);
+                    }
+                }
+            }
+        }
+        resetExpressionTableName(expr->nextexpr);
+    };
+    for (auto &expr:exprVector) {
+        resetExpressionTableName(expr);
+    }
+}
+
+void getAllTableNames(SRA_t *tree, std::vector<char *> &tableNames) {
+    switch (tree->t) {
+        case SRA_SELECT: {
+            getAllTableNames(tree->select.sra, tableNames);
+            return;
+        }
+        case SRA_PROJECT: {
+            getAllTableNames(tree->project.sra, tableNames);
+            return;
+        }
+        case SRA_JOIN: {
+            getAllTableNames(tree->join.sra1, tableNames);
+            getAllTableNames(tree->join.sra2, tableNames);
+            return;
+        }
+        case SRA_TABLE: {
+            char *tableName = tree->table.ref->table_name;
+            tableNames.push_back(tableName);
+            return;
+        }
+        default:
+            return;
+    }
+}
+
+
 /*输入一个关系代数表达式，输出优化后的关系代数表达式
  * 要求：在查询条件符合合取范式的前提下，根据等价变换规则将查询条件移动至合适的位置。
  * complain: this function is stupid like the function Expression* Expression::expression_print(), who can tell me what the parameter `tableManager` used to?
  * */
-SRA_t *dongmengdb_algebra_optimize_condition_pushdown(SRA_t *sra, TableManager *tableManager) {
+SRA_t *
+dongmengdb_algebra_optimize_condition_pushdown(SRA_t *sra, TableManager *tableManager, Transaction *transaction) {
 //    SRA_print(sra);
 //    return sra;
     _SRA *join_tree = SRAConstruct(sra, nullptr);
@@ -618,12 +693,16 @@ SRA_t *dongmengdb_algebra_optimize_condition_pushdown(SRA_t *sra, TableManager *
     }
     printf("\n******************\n");
 #endif
+//    TableInfo *tableInfo = tableManager->table_manager_get_tableinfo(nullptr, transaction);
+    std::vector<char *> tableNames;
+    getAllTableNames(sra, tableNames);
+    addTableNameOn(expressionVector, tableNames, tableManager, transaction);
 //    return sra;
-    std::vector<Expression *> noTableNameExpr = cutNoTableNameExpresionFrom(expressionVector);
     join_tree->pushSRADown(expressionVector);
     //explain: rebuild SRA_t pointer
     sra->project.sra = sra->project.sra->select.sra;
-    createSelectOn(sra->project.sra, sra, noTableNameExpr);
+    printf("\n**************\n");
     SRA_print(sra);
+    printf("\n**************\n");
     return sra;
 }
