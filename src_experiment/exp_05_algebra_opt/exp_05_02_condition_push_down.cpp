@@ -6,6 +6,7 @@
 #include <dongmensql/expression.h>
 #include <functional>
 #include <queue>
+#include <iostream>
 
 
 #if 1
@@ -391,8 +392,10 @@ bool isOperator(TokenType type) {
  */
 Expression *constructSingleExpression(Expression *from_expr, bool matchWord = false) {
     if (!isOperator(from_expr->opType))matchWord = true;
-    if ((isOperator(from_expr->opType) && matchWord) || (from_expr->nextexpr == nullptr)) {
+    if ((isOperator(from_expr->opType) && matchWord)) {
         return nullptr;
+    } else if (from_expr->nextexpr == nullptr) {
+        return from_expr;
     } else {
         Expression *expr = new Expression(from_expr->opType,
                                           constructSingleExpression(from_expr->nextexpr, matchWord));
@@ -503,7 +506,7 @@ SRA_t *createSelectOn(SRA_t *now, SRA_t *before, std::vector<Expression *> &expr
             before->project.sra = sra;
         }
         case SRA_SELECT: {
-            sra = SRASelect(now, expr[counter]);`
+            sra = SRASelect(now, expr[counter]);
             before->select.sra = sra;
         }
         case SRA_TABLE: {
@@ -522,10 +525,21 @@ SRA_t *dongmengdb_algebra_optimize_condition_pushdown(SRA_t *sra, TableManager *
     _SRA *join_tree = SRAConstruct(sra, nullptr);
     Expression *begin_expr = cutANDOperator(sra->project.sra->select.cond);
     std::vector<Expression *> expressionVector = expressionSpread(begin_expr);
+    printf("expression spread:\n");
+    for (int i = 0; i < expressionVector.size(); ++i) {
+        char str[1000];
+        memset(str, 0, sizeof(str));
+        Expression *exp = expressionVector.at(i);
+        exp->expression_print(exp, str);
+        std::cout << str << std::endl;
+    }
+    printf("\n******************\n");
+    return sra;
     std::vector<Expression *> noTableNameExpr = cutNoTableNameExpresionFrom(expressionVector);
     join_tree->pushSRADown(expressionVector);
     //explain: rebuild SRA_t pointer
     sra->project.sra = sra->project.sra->select.sra;
     createSelectOn(sra->project.sra, sra, noTableNameExpr);
+
     return sra;
 }
