@@ -1,5 +1,6 @@
 //
-// Created by Sam on 2018/2/13.
+// Created by sumover on 2018/2/13.
+// 本代码用了大量的auto, std::function的模板, 还有各种迭代器, 请保证自己的g++编译器版本为C++11以上
 //
 
 #include <relationalalgebra/optimizer.h>
