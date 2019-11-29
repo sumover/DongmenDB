@@ -8,6 +8,123 @@
 #include <queue>
 #include <iostream>
 
+#define sumover 2
+#if sumover == 2
+#if 1
+
+class Decreator;
+
+class SRATree;
+
+class DecreatorContainer;
+
+Expression *nextOperatorExprssion(Expression *expr);
+
+bool isCompareOperator(Expression *expr);
+
+#endif
+
+
+Expression *nextOperatorExprssion(Expression *expr) {
+    Expression *pointer = expr;
+    if (isCompareOperator(expr))
+        pointer = pointer->nextexpr;
+    while (pointer != nullptr && isCompareOperator(pointer) != false)
+        pointer = pointer->nextexpr;
+    return pointer;
+}
+
+bool isCompareOperator(Expression *expr) {
+    static const size_t SIZE = 21;
+    const static TokenType types[SIZE] = {
+            TOKEN_OPEN_PAREN,
+            TOKEN_CLOSE_PAREN,
+            TOKEN_POWER,
+            TOKEN_PLUS,
+            TOKEN_MINUS,
+            TOKEN_DIVIDE,
+            TOKEN_MULTIPLY,
+            TOKEN_LT,              //less-than operator
+            TOKEN_GT,
+            TOKEN_EQ,
+            TOKEN_NOT_EQUAL,
+            TOKEN_LE,               //less-than-or-equal-to operator"
+            TOKEN_GE,
+            TOKEN_IN,
+            TOKEN_LIKE,
+            TOKEN_AND,
+            TOKEN_OR,
+            TOKEN_NOT,
+            TOKEN_ASSIGNMENT,
+            TOKEN_FUN,
+            TOKEN_COMMA,      /*以上是操作符，在表达式解析时使用*/
+    };
+    TokenType type = expr->opType;
+    for (size_t i = 0; i < SIZE; ++i)
+        if (type == types[i])return true;
+    return false;
+}
+
+/**
+ * 一个用于抽象Expression节点的类
+ */
+class Decreator {
+    Expression *decreateExpr;
+
+
+    /**
+     * 用于切分Expresion链表的静态函数
+     * @param exprList
+     * @return
+     */
+    static Expression *spreadSingleExpression(Expression *exprList);
+};
+
+class SRATree {
+    SRA_t *now;
+    SRATree *before;
+public:// 虚拟函数
+    virtual bool isLeave() = 0;
+
+public:
+
+    SRA_t *getNow() const {
+        return now;
+    }
+
+    void setNow(SRA_t *now) {
+        SRATree::now = now;
+    }
+
+    SRATree *getBefore() const {
+        return before;
+    }
+
+    void setBefore(SRATree *before) {
+        SRATree::before = before;
+    }
+};
+
+Expression *Decreator::spreadSingleExpression(Expression *exprList) {
+    Expression *next = nextOperatorExprssion(exprList), *now = exprList, *pointer = exprList;
+    while (pointer->nextexpr != next) {
+        pointer = pointer->nextexpr;
+    }
+    pointer->nextexpr = nullptr;
+    exprList = next;
+    return now;
+}
+
+
+SRA_t *
+dongmengdb_algebra_optimize_condition_pushdown(SRA_t *sra, TableManager *tableManager, Transaction *transaction) {
+    SRA_t *select = sra->project.sra;
+    return select;
+}
+
+#endif
+
+#if sumover == 1
 
 #if 1
 
@@ -633,3 +750,5 @@ dongmengdb_algebra_optimize_condition_pushdown(SRA_t *sra, TableManager *tableMa
     printf("\n**************\n");
     return sra;
 }
+
+#endif
