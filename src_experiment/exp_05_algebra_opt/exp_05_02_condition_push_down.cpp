@@ -152,11 +152,11 @@ public:
         nowSRA = nowSra;
     }
 
-    AlgebraTreeNode *getBeforeNode() const {
+    virtual AlgebraTreeNode *getBeforeNode() const {
         return beforeNode;
     }
 
-    void setBeforeNode(AlgebraTreeNode *beforeNode) {
+    virtual void setBeforeNode(AlgebraTreeNode *beforeNode) {
         AlgebraTreeNode::beforeNode = beforeNode;
     }
 };
@@ -184,10 +184,37 @@ protected:
 
     void decreator_push_down(DecreatorContainer *decreatorContainer) override {
         setDecreatorOn(decreatorContainer);
-        return;
     }
 
     void setDecreatorOn(DecreatorContainer *decreatorContainer) override;
+};
+
+/**
+ * 这个类其实相对较为特殊
+ * 从逻辑层面讲, 这个类只是一个用来修饰Table和Join的一个新的一个类, 本身并不作为树的节点存在
+ * 从物理层面讲, 这个类中包含的SRA_t指针是一个确实存在的一个节点
+ * 做这个设计的原因如下:
+ *      1.  为了让整个关系树更加清晰明确
+ *      2.  为了方便构造Select以修饰Table和Join节点
+ */
+class SelectNode {
+private:
+    //  由于Select只有一个后继节点, 这里需要构造一个类双向链表的结构
+    SRA_t *next, *before, *nowSRA;
+    Decreator *decreator;
+public:
+    SelectNode(Decreator *decreator, AlgebraTreeNode *treeNode) : decreator(decreator),
+                                                                  next(treeNode->getNowSra()),
+                                                                  before(treeNode->getBeforeSra()) {
+        nowSRA = SRASelect(
+                next, decreator->getExpr()
+        );
+    }
+
+
+    static SelectNode *constructSelectListOn(std::vector<Decreator *> decs, AlgebraTreeNode *node) {
+        return nullptr;
+    }
 };
 
 /**
