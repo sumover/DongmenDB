@@ -14,27 +14,234 @@
 
 class Decreator;
 
-class SRATree;
+class SingleDecreator;
+
+class LinkDecreator;
 
 class DecreatorContainer;
 
-Expression *nextOperatorExprssion(Expression *expr);
+class AlgebraTreeNode;
 
-bool isCompareOperator(Expression *expr);
+class JoinNode;
+
+class TableNode;
+
+class SelectNode;
 
 #endif
 
+/**
+ * 基础的装饰类
+ */
+class Decreator {
+    Expression *expr;
+public:
+    Decreator(Expression *expr) : expr(expr) {}
 
-Expression *nextOperatorExprssion(Expression *expr) {
+    Expression *getExpr() const {
+        return expr;
+    }
+
+    void setExpr(Expression *expr) {
+        Decreator::expr = expr;
+    }
+
+
+    virtual bool isSingleDecreator() = 0;
+
+    virtual bool isLinkDecreator() = 0;
+
+    virtual bool nodeMatch(AlgebraTreeNode *node) = 0;
+
+public: //  some tool function.
+    static Expression *cutANDExpression(Expression *expr);
+
+    static Expression *nextExpression(Expression *expr);
+
+    static Expression *nextHeadExpression(Expression *expr);
+
+    static bool isCompareOperator(Expression *expr);
+
+    static bool isAND(Expression *expr);
+
+    static Expression *singleExpressionSpread(Expression *expr);
+};
+
+class SingleDecreator : protected Decreator {
+    char *described_table_name;
+public:
+    SingleDecreator(Expression *expr, const char *decreatorTableName) : Decreator(expr) {
+        described_table_name = new_id_name();
+        strcpy(described_table_name, decreatorTableName);
+    }
+
+    ~SingleDecreator() {
+        free(described_table_name);
+    }
+
+    bool isSingleDecreator() override {
+        return true;
+    }
+
+    bool isLinkDecreator() override {
+        return false;
+    }
+
+    bool nodeMatch(AlgebraTreeNode *node) override {
+        return false;
+    }
+};
+
+class LinkDecreator : protected Decreator {
+    char *left_table_name, *right_table_name;
+public:
+    LinkDecreator(Expression *expr, char *leftTableName, char *rightTableName) : Decreator(expr) {
+        left_table_name = new_id_name();
+        strcpy(left_table_name, leftTableName);
+        right_table_name = new_id_name();
+        strcpy(right_table_name, rightTableName);
+    }
+
+    ~LinkDecreator() {
+        free(left_table_name);
+        free(right_table_name);
+    }
+
+    bool isSingleDecreator() override {
+        return false;
+    }
+
+    bool isLinkDecreator() override {
+        return true;
+    }
+
+    bool nodeMatch(AlgebraTreeNode *node) override {
+        return false;
+    }
+};
+
+/**
+ * 基础的语法树节点类
+ */
+class AlgebraTreeNode {
+private:
+    SRA_t *beforeSRA, *nowSRA;
+    AlgebraTreeNode *beforeNode;
+public:
+    virtual bool isLeave() = 0;
+
+    virtual void decreator_push_down(DecreatorContainer *decreatorContainer) = 0;
+
+    virtual void setDecreatorOn(DecreatorContainer *decreatorContainer) = 0;
+
+    // getter and setter
+
+    SRA_t *getBeforeSra() const {
+        return beforeSRA;
+    }
+
+    void setBeforeSra(SRA_t *beforeSra) {
+        beforeSRA = beforeSra;
+    }
+
+    SRA_t *getNowSra() const {
+        return nowSRA;
+    }
+
+    void setNowSra(SRA_t *nowSra) {
+        nowSRA = nowSra;
+    }
+
+    AlgebraTreeNode *getBeforeNode() const {
+        return beforeNode;
+    }
+
+    void setBeforeNode(AlgebraTreeNode *beforeNode) {
+        AlgebraTreeNode::beforeNode = beforeNode;
+    }
+};
+
+class JoinNode : protected AlgebraTreeNode {
+protected:
+    bool isLeave() override {
+        return false;
+    }
+
+    void decreator_push_down(DecreatorContainer *decreatorContainer) override {
+
+    }
+
+    void setDecreatorOn(DecreatorContainer *decreatorContainer) override {
+
+    }
+};
+
+class TableNode : protected AlgebraTreeNode {
+protected:
+    bool isLeave() override {
+        return true;
+    }
+
+    void decreator_push_down(DecreatorContainer *decreatorContainer) override {
+        setDecreatorOn(decreatorContainer);
+        return;
+    }
+
+    void setDecreatorOn(DecreatorContainer *decreatorContainer) override;
+};
+
+/**
+ * 漫长的算法他leile
+ * @param decreatorContainer
+ */
+void TableNode::setDecreatorOn(DecreatorContainer *decreatorContainer) {
+
+}
+
+/**
+ * 去掉一个Expression链开始的所有的`AND`
+ * @param expr
+ * @return
+ */
+Expression *Decreator::cutANDExpression(Expression *expr) {
     Expression *pointer = expr;
-    if (isCompareOperator(expr))
-        pointer = pointer->nextexpr;
-    while (pointer != nullptr && isCompareOperator(pointer) != false)
-        pointer = pointer->nextexpr;
+    while (pointer != nullptr) {
+        Expression *nowExpr = pointer;
+        pointer = nextExpression(pointer);
+        if (isAND(nowExpr)) {
+            free(nowExpr);
+        } else {
+            return nowExpr;
+        }
+    }
     return pointer;
 }
 
-bool isCompareOperator(Expression *expr) {
+/**
+ * 迭代器模式
+ * @param expr
+ * @return
+ */
+Expression *Decreator::nextExpression(Expression *expr) {
+    return (expr == nullptr) ? nullptr : (expr->nextexpr);
+}
+
+/**
+ * 找到下一个起始Expression节点
+ * @param expr
+ * @return
+ */
+Expression *Decreator::nextHeadExpression(Expression *expr) {
+    if (isCompareOperator(expr)) expr = nextExpression(expr);
+    while (expr != nullptr) {
+        if (isCompareOperator(expr))break;
+        expr = nextExpression(expr);
+    }
+    return expr;
+}
+
+
+bool Decreator::isCompareOperator(Expression *expr) {
     static const size_t SIZE = 21;
     const static TokenType types[SIZE] = {
             TOKEN_OPEN_PAREN,
@@ -60,59 +267,31 @@ bool isCompareOperator(Expression *expr) {
             TOKEN_COMMA,      /*以上是操作符，在表达式解析时使用*/
     };
     TokenType type = expr->opType;
-    for (size_t i = 0; i < SIZE; ++i)
-        if (type == types[i])return true;
+    for (auto i : types)
+        if (type == i)return true;
     return false;
 }
 
+bool Decreator::isAND(Expression *expr) {
+    return expr->opType == TOKEN_AND;
+}
+
 /**
- * 一个用于抽象Expression节点的类
+ * 将当前指向的Expression节点和Expression串分离开
+ * @param expr
+ * @return
  */
-class Decreator {
-    Expression *decreateExpr;
-
-
-    /**
-     * 用于切分Expresion链表的静态函数
-     * @param exprList
-     * @return
-     */
-    static Expression *spreadSingleExpression(Expression *exprList);
-};
-
-class SRATree {
-    SRA_t *now;
-    SRATree *before;
-public:// 虚拟函数
-    virtual bool isLeave() = 0;
-
-public:
-
-    SRA_t *getNow() const {
-        return now;
-    }
-
-    void setNow(SRA_t *now) {
-        SRATree::now = now;
-    }
-
-    SRATree *getBefore() const {
-        return before;
-    }
-
-    void setBefore(SRATree *before) {
-        SRATree::before = before;
-    }
-};
-
-Expression *Decreator::spreadSingleExpression(Expression *exprList) {
-    Expression *next = nextOperatorExprssion(exprList), *now = exprList, *pointer = exprList;
-    while (pointer->nextexpr != next) {
-        pointer = pointer->nextexpr;
-    }
-    pointer->nextexpr = nullptr;
-    exprList = next;
-    return now;
+Expression *Decreator::singleExpressionSpread(Expression *expr) {
+    if (expr == nullptr)return nullptr;
+    Expression *nextHead = nextHeadExpression(expr);
+    Expression *pointer = expr;
+    do {
+        if (pointer->nextexpr == nextHead) {
+            pointer->nextexpr = nullptr;
+            break;
+        }
+    } while ((pointer = nextExpression(pointer)) != nullptr);
+    return expr;
 }
 
 
