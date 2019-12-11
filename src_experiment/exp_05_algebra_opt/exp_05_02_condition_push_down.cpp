@@ -7,14 +7,15 @@
 #include <dongmensql/expression.h>
 #include <functional>
 #include <queue>
+// 测试用, 如果不需要输出请删掉
 #include <iostream>
 
 
-#if 1
-
-class _Table;
+#if 1 // 一些定义
 
 class _SRA;
+
+class _Table;
 
 class _Join;
 
@@ -46,29 +47,55 @@ addTableNameOn(std::vector<Expression *> &exprVector, std::vector<char *> tableN
 
 void getAllTableNames(SRA_t *tree, std::vector<char *> &tableNames);
 
+void expressionPrint(Expression *expr);
+
+void SRAPrint(Expression *expr);
+
+
 #endif
 
 /**
 * explain:说明:
-* 整体算法基于后根DFS, 先访问所有节点, 然后访问根
+*   整体算法基于后根DFS, 先访问所有节点, 然后访问根
 */
-class _SRA {    // explain:此处使用状态模式
+class _SRA {    // explain:此处使用状态模式, 并且将一些可以抽象的函数抽象起来, 以保证方法的充分利用
 private:
-    SRA_t *before;
+    SRA_t *before;  //  explain: 前节点, 用于构造一个树形结构
 public:
     // explain: 构造一个双向链表
     void setBefore(SRA_t *sra) { before = sra; }
 
     SRA_t *getBefore() { return before; }
 
+    /**
+     * 一个用于判断是否为子节点的一个函数, 总的方法抽象到父类中, 并将具体的实现下放给子类
+     * @return  是否为叶子节点
+     */
     virtual bool isLeaves() = 0;
 
+    /**
+     * 给当前节点添加修饰节点(Select)
+     * @param expressionVector
+     */
     virtual void setSRAOn(std::vector<Expression *> &expressionVector) = 0;
 
+    /**
+     * 基于当前节点向下推进, 保证整个过程是遍历了整个节点的
+     * @param expressionVector
+     */
     virtual void pushSRADown(std::vector<Expression *> &expressionVector) = 0;
 
+    /**
+     *  检测传入的表达式能不能与当前节点相匹配
+     * @param expr
+     * @return 是否匹配
+     */
     virtual bool expressionMatch(Expression *expr) = 0;
 
+    /**
+     *  给当前节点添加一个修饰节点
+     * @param expr
+     */
     virtual void pushSelectOn(Expression *expr) = 0;
 
     /**
@@ -99,7 +126,7 @@ public:
         }
         before = sra;
     }
-};//explain: 其实也不是状态模式, 就是活用了C++的`virtual`和`继承`而已
+};//complain: 其实也不是状态模式, 就是活用了C++的`virtual`和`继承`而已
 
 /***
  *  explain: 查询树的叶子节点
@@ -108,17 +135,31 @@ class _Table : public _SRA {
     SRA_t *table_sra;
     char *table_name;
 public:
+    /**
+     * 构造函数, 初始化一个table节点的封装节点
+     * @param sra
+     */
     _Table(SRA_t *sra) {
         table_sra = sra;
         table_name = new_id_name();
         strcpy(table_name, sra->table.ref->table_name);
     }
 
+    /**
+     * 用于判断表名是否与当前封装的节点的表名匹配
+     * @param tableName
+     * @return
+     */
     bool tableNameMatched(const char *tableName) {
         if (tableName == nullptr)return false;
         else return strcmp(tableName, table_name) == 0;
     }
 
+    /**
+     * 首先, 要排除那些用于修饰Join节点的表达式, 然后看看当前节点是否可以被修饰即可
+     * @param expr
+     * @return
+     */
     bool expressionMatch(Expression *expr) override {
         // explain: 匹配方案:有且仅有一个`Expression*`的类型为TOKEN_WORD, 且值与当前匹配
         //  如果没有任何匹配值, 返回false
