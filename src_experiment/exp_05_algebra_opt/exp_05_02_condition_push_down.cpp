@@ -315,6 +315,7 @@ public:
         right->pushSRADown(expressionVector);
         this->setSRAOn(expressionVector);
     }
+
     /**
      * 对于一个用于链接操作的expression,
      *  找到这个expression的左右Table节点位置, 然后检测本节点是否为这俩节点的LCA~
@@ -421,36 +422,6 @@ public:
     }
 };
 
-class Select {
-public:
-    explicit Select(Expression *e) : expr(e) {}
-
-protected:
-    Expression *expr;
-};
-
-class JoinSelect : public Select {
-    char *left_field_name, *left_table_name;
-    char *right_field_name, *right_table_name;
-public:
-    explicit JoinSelect(Expression *e) : Select(e) {
-        left_field_name = new_id_name();
-        right_field_name = new_id_name();
-        left_table_name = new_id_name();
-        right_table_name = new_id_name();
-//        strcpy(left_table_name,)
-    }
-};
-
-class TableSelect : public Select {
-    char *field_name, *table_name;
-
-    explicit TableSelect(Expression *e) : Select(e) {
-        table_name = new_id_name();
-        field_name = new_id_name();
-    }
-};
-
 /**
  * construct a _SRA object, to parse and fix the struct of SRA_t which is parse from where expression
  * As we know, a SRA_t always be make by Project->Select->Join,
@@ -489,28 +460,29 @@ _SRA *SRAConstruct(SRA_t *sra, SRA_t *before) {
 }
 
 bool isOperator(TokenType type) {
-    TokenType types[21] = {TOKEN_OPEN_PAREN,
-                           TOKEN_CLOSE_PAREN,
-                           TOKEN_POWER,
-                           TOKEN_PLUS,
-                           TOKEN_MINUS,
-                           TOKEN_DIVIDE,
-                           TOKEN_MULTIPLY,
-                           TOKEN_LT,              //less-than operator
-                           TOKEN_GT,
-                           TOKEN_EQ,
-                           TOKEN_NOT_EQUAL,
-                           TOKEN_LE,               //less-than-or-equal-to operator"
-                           TOKEN_GE,
-                           TOKEN_IN,
-                           TOKEN_LIKE,
-                           TOKEN_AND,
-                           TOKEN_OR,
-                           TOKEN_NOT,
-                           TOKEN_ASSIGNMENT,
-                           TOKEN_FUN,
-                           TOKEN_COMMA};
-    for (int i = 0; i < 21; ++i)if (type == types[i])return true;
+    static const int SIZE = 21;
+    TokenType types[SIZE] = {TOKEN_OPEN_PAREN,
+                             TOKEN_CLOSE_PAREN,
+                             TOKEN_POWER,
+                             TOKEN_PLUS,
+                             TOKEN_MINUS,
+                             TOKEN_DIVIDE,
+                             TOKEN_MULTIPLY,
+                             TOKEN_LT,              //less-than operator
+                             TOKEN_GT,
+                             TOKEN_EQ,
+                             TOKEN_NOT_EQUAL,
+                             TOKEN_LE,               //less-than-or-equal-to operator"
+                             TOKEN_GE,
+                             TOKEN_IN,
+                             TOKEN_LIKE,
+                             TOKEN_AND,
+                             TOKEN_OR,
+                             TOKEN_NOT,
+                             TOKEN_ASSIGNMENT,
+                             TOKEN_FUN,
+                             TOKEN_COMMA};
+    for (int i = 0; i < SIZE; ++i)if (type == types[i])return true;
     return false;
 }
 
@@ -600,51 +572,6 @@ bool haveTableName(Expression *expr) {
     }
 }
 
-std::vector<Expression *> cutNoTableNameExpresionFrom(std::vector<Expression *> &exprVector) {
-    std::vector<Expression *> cuttedExpr;
-    for (auto &expr:exprVector) {
-        if (!haveTableName(expr)) {
-            cuttedExpr.push_back(expr);
-            expr = nullptr;
-        }
-    }
-    return cuttedExpr;
-}
-
-/**
- * explain: to redescribe SRA_t*list
- * @param iter
- * @param sra
- * @return
- */
-SRA_t *createSelectOn(SRA_t *now, SRA_t *before, std::vector<Expression *> &expr, int counter = 0) {
-    if (counter == expr.size())
-        return nullptr;
-    SRA_t *sra = nullptr;
-    switch (before->t) {
-        case SRA_JOIN: {
-            sra = SRASelect(now, expr[counter]);
-            if (before->join.sra1 == now) {
-                before->join.sra1 = sra;
-            } else if (before->join.sra2 == now) {
-                before->join.sra2 = sra;
-            }
-        }
-        case SRA_PROJECT: {
-            sra = SRASelect(now, expr[counter]);
-            before->project.sra = sra;
-        }
-        case SRA_SELECT: {
-            sra = SRASelect(now, expr[counter]);
-            before->select.sra = sra;
-        }
-        case SRA_TABLE: {
-            return nullptr;
-        }
-    }
-    return createSelectOn(now, sra, expr, counter + 1);
-}
-
 /**
  * 给一堆Expr们添加上tableName
  * @param exprVector
@@ -719,7 +646,7 @@ void getAllTableNames(SRA_t *tree, std::vector<char *> &tableNames) {
  * */
 SRA_t *
 dongmengdb_algebra_optimize_condition_pushdown(SRA_t *sra, TableManager *tableManager, Transaction *transaction) {
-//    SRA_print(sra);
+    SRA_print(sra);
 //    return sra;
     _SRA *join_tree = SRAConstruct(sra, nullptr);
     Expression *begin_expr = cutANDOperator(sra->project.sra->select.cond);
