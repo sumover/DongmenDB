@@ -37,7 +37,7 @@ update语句的语法定义为：
 ```sql
 UPDATE <table_name> SET <field1> = <expr1>[, <field2 = <expr2>, ..] WHERE <logical_expr>
 ```
-    
+
 解析语句的整体算法就是一句句的匹配关键词以及根据关键词来判断解析的内容.
 
 解析SQL语句之后要做的就是执行物理计划, 执行物理计划以如下方式进行.
@@ -106,7 +106,7 @@ DELETE <table_name> WHERE <logical_expr>
 
 ##  实验过程
 
-实现src_experiment\exp_05_algebra_opt\exp_05_02_condition_push_down.c中的dongmengdb_algebra_optimize_condition_pushdown函数。 
+实现src_experiment\exp_05_algebra_opt\exp_05_02_condition_push_down.c中的dongmengdb_algebra_optimize_condition_pushdown函数。
 
 
 由于算法结构相对复杂, 故本次将分模块, 自顶向下的解释整体算法的流程.
@@ -131,7 +131,7 @@ DELETE <table_name> WHERE <logical_expr>
 
 ![](3.1.jpg)
 
-####私有的重构_SRA树
+#### 私有的重构_SRA树
 
 这里使用了面向对象的操作方法, 由于算法时间复杂度并不是很高, 故并没有过多的考虑时间复杂度的问题.
 
@@ -141,7 +141,7 @@ DELETE <table_name> WHERE <logical_expr>
 
 对两种不同的类型, Join和Table, 有不同的判断方式.
 
-#####join类型的节点:
+##### join类型的节点:
 
 首先找到那些有两个关键字的表达式, 跳过单个关键字的表达式.(return false)
 
@@ -151,7 +151,7 @@ DELETE <table_name> WHERE <logical_expr>
 
 如果是, 那就是了(return true)
 
-#####table 类型的节点
+##### table 类型的节点
 
 找到单个关键字的表达式.
 
@@ -159,7 +159,7 @@ DELETE <table_name> WHERE <logical_expr>
 
 如果匹配, 那就是了(return true)
 
-####重新解析Expression链
+#### 重新解析Expression链
 
 1.  删除所有的AND类型的Expression结点
 
@@ -177,7 +177,7 @@ DELETE <table_name> WHERE <logical_expr>
 
 考虑到将来可能进行的对project节点的优化, 并且为了更加直观, 方便未来的代码维护者对算法进行修改维护.
  我重新构造了一个新的树形结构, 用面向对象的思想重新审视整个算法的执行, 递推过程.
- 
+
 而对于表达式与节点的匹配, 我使用了著名的在线Tarjan算法.
 
 通过本次实验, 我增进了对dfs算法的熟悉, 了解了先根序表达式节点的物理存储方式. 学会了如何优化一颗算法树.
